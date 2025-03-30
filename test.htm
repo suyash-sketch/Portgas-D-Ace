@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test</title>
+</head>
+<body>
+    <h2>WebSocket Test</h2>
+    <button onclick="sendMessage()">Send Message</button>
+    <p id="output"></p>
+
+    <script>
+        const ws = new WebSocket("ws://localhost:8080");
+    
+        ws.onopen = function() {
+            console.log("✅ Connected to WebSocket!");
+            document.getElementById("output").innerText = "Connected!";
+        };
+    
+        ws.onmessage = function(event) {
+            console.log("📩 Received:", event.data);
+            document.getElementById("output").innerText = "Received: " + event.data;
+        };
+    
+        ws.onerror = function(error) {
+            console.error("❌ WebSocket Error:", error);
+        };
+    
+        ws.onclose = function() {
+            console.log("🚪 Connection closed.");
+            document.getElementById("output").innerText = "Connection closed.";
+        };
+    
+        function sendMessage() {
+            const message = {
+                "type": "INIT_GAME"  // ✅ Correct JSON format
+            };
+            ws.send(JSON.stringify(message));  // ✅ Send JSON string
+        }
+    </script>
+    
+</body>
+</html>

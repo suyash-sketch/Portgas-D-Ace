@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Landing Page</title>
+    <style>
+        body {
+            background-color: #302e2b;
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: auto;
+            padding: 20px;
+        }
+
+        .landing-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chess-board {
+            width: 80%;
+            max-height: 650px;
+            border-radius: 10px;
+            margin: 20px auto;
+            display: block;
+        }
+
+        .info-section {
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 40px;
+            border-radius: 20px;
+            margin-top: 50px;
+            width: 80%;
+            text-align: left;
+        }
+
+        .info-section img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .github-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 20px;
+            padding: 15px;
+            border: 2px solid white;
+            border-radius: 10px;
+            text-decoration: none;
+            color: white;
+            font-size: 20px;
+            transition: 0.3s;
+        }
+
+        .github-link img {
+            width: 40px;
+            margin-right: 10px;
+        }
+
+        .github-link:hover {
+            background: white;
+            color: black;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to the Chess Game</h1>
+
+        <div class="landing-section">
+            <img id="chessBoardImage" class="chess-board" src="" alt="Chess Board">
+            <div id="playCard"></div>
+        </div>
+
+        <div class="info-section">
+            <h1>Found an Issue!</h1>
+            <p>Please create an issue on our GitHub page below. You're also invited to contribute to the project.</p>
+
+            <a href="https://github.com/code100x/chess/issues" target="_blank" class="github-link">
+                <img src="https://res.cloudinary.com/dcugqfvvg/image/upload/v1713657100/github-svgrepo-com_uosbko.svg" alt="GitHub">
+                <p>GitHub</p>
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // THEMES DATA (replacing React state)
+        const THEMES_DATA = [
+            { name: "bubblegum", "board-image": "https://example.com/bubblegum-board.png" },
+            { name: "classic", "board-image": "https://example.com/classic-board.png" }
+        ];
+
+        // Function to get the theme from local storage or use default
+        function getTheme() {
+            return localStorage.getItem("theme") || "classic";
+        }
+
+        // Function to update the board image based on theme
+        function updateBoardImage() {
+            const theme = getTheme();
+            const currentTheme = THEMES_DATA.find(data => data.name === theme);
+            document.getElementById("chessBoardImage").src = currentTheme
+                ? currentTheme["board-image"]
+                : "https://res.cloudinary.com/dcugqfvvg/image/upload/v1713647295/standardboard.1d6f9426_asqzum.png";
+        }
+
+        // Initialize board image
+        document.addEventListener("DOMContentLoaded", updateBoardImage);
+    </script>
+</body>
+</html>
