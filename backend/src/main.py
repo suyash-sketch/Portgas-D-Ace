@@ -59,13 +59,7 @@ async def websocket_handler(websocket):
             await websocket.close(1008, "No token provided")
             return
             
-        # For testing, accept any token that starts with 'test-token-'
-        if not token.startswith('test-token-'):
-            print("Invalid token format")
-            await websocket.close(1008, "Invalid token")
-            return
-            
-        # Create a simple user object for testing
+        # Accept any token for testing
         user = {
             'id': token,
             'websocket': websocket

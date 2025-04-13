@@ -167,10 +167,9 @@
 
     <script>
         // Server configuration
-        // Using the current hostname for Heroku deployment
         const SERVER_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
             ? 'ws://localhost:8080'  // Local development
-            : `wss://${window.location.hostname}`;  // Production
+            : `wss://${window.location.hostname}:8080/ws`;  // Production with explicit port and path
         let token = 'test-token-' + Math.random().toString(36).substring(7);
         let socket = null;
         let gameStarted = false;
