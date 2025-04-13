@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Chess - Welcome</title>
+    <style>
+        body {
+            background-color: #302e2b;
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            padding: 40px;
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            color: #f0d9b5;
+        }
+
+        p {
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 15px 30px;
+            background-color: #739552;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            transition: background-color 0.3s;
+            margin: 10px;
+        }
+
+        .btn:hover {
+            background-color: #8ab168;
+        }
+
+        .chess-icon {
+            font-size: 5rem;
+            margin-bottom: 20px;
+        }
+
+        .features {
+            display: flex;
+            justify-content: space-around;
+            margin: 40px 0;
+            flex-wrap: wrap;
+        }
+
+        .feature {
+            flex: 1;
+            min-width: 200px;
+            margin: 10px;
+            padding: 20px;
+            background-color: rgba(115, 149, 82, 0.2);
+            border-radius: 5px;
+        }
+
+        .feature h3 {
+            color: #f0d9b5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="chess-icon">♟</div>
+        <h1>Welcome to Online Chess</h1>
+        <p>Play chess with friends or random opponents in real-time. Challenge your strategic thinking and improve your game.</p>
+        
+        <div class="features">
+            <div class="feature">
+                <h3>Real-time Play</h3>
+                <p>Play chess in real-time with opponents from around the world.</p>
+            </div>
+            <div class="feature">
+                <h3>Simple Interface</h3>
+                <p>Clean, intuitive interface for a smooth gaming experience.</p>
+            </div>
+            <div class="feature">
+                <h3>No Registration</h3>
+                <p>Start playing immediately without creating an account.</p>
+            </div>
+        </div>
+        
+        <a href="game.html" class="btn">Start Game</a>
+    </div>
+</body>
+</html> 

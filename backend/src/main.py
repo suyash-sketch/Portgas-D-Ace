@@ -13,13 +13,14 @@ game_manager = GameManager()
 auth = Auth()
 
 # Get the absolute path to the frontend directory
+# For PythonAnywhere, use the correct path
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'frontend', 'src')
 
 async def handle_static_file(request):
     try:
         path = request.path
         if path == '/':
-            path = '/game.html'  # Serve game.html as the main page
+            path = '/index.html'  # Serve index.html as the main page
             
         file_path = os.path.join(FRONTEND_DIR, path.lstrip('/'))
         if os.path.exists(file_path):
@@ -38,8 +39,6 @@ async def handle_static_file(request):
     except Exception as e:
         print(f"Error serving static file: {e}")
         return web.Response(status=500)
-
-# In main.py, update the websocket_handler function
 
 async def websocket_handler(websocket):
     """Handle WebSocket connections."""
@@ -104,26 +103,34 @@ async def websocket_handler(websocket):
         if user:
             game_manager.remove_user(websocket)
 
-
 async def start_websocket_server():
+    """Start the WebSocket server."""
+    # Get port from environment variable or use default
+    port = int(os.environ.get('PORT', 8080))
+    
     # Use legacy API for websockets 15.0+
     from websockets.legacy.server import serve
     server = await serve(
         websocket_handler,
-        'localhost',
-        8080,
+        '0.0.0.0',  # Listen on all interfaces
+        port
     )
-    print("🚀 Starting WebSocket server on port 8080...")
+    print(f"🚀 Starting WebSocket server on port {port}...")
     return server
 
 async def start_http_server():
+    """Start the HTTP server for static files."""
     app = web.Application()
     app.router.add_get('/{tail:.*}', handle_static_file)
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, 'localhost', 8081)
+    
+    # Get port from environment variable or use default
+    port = int(os.environ.get('PORT', 8081))
+    
+    site = web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
-    print("🚀 Starting HTTP server on port 8081...")
+    print(f"🚀 Starting HTTP server on port {port}...")
     return runner
 
 async def main():
