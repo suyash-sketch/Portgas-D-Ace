@@ -1,4 +1,0 @@
-websockets==12.0
-aiohttp==3.9.3
-PyJWT==2.8.0
-python-chess==1.10.0 
