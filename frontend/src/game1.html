@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Game</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <style>
+        body {
+            background-color: #302e2b;
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            width: 80%;
+            margin: auto;
+        }
+
+        #chess-board {
+            display: grid;
+            grid-template-columns: repeat(8, 50px);
+            grid-template-rows: repeat(8, 50px);
+            gap: 2px;
+            width: 400px;
+            margin: 20px auto;
+            border: 2px solid white;
+        }
+
+        .square {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .light {
+            background-color: #EBECD0;
+        }
+
+        .dark {
+            background-color: #739552;
+        }
+
+        #controls {
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 10px;
+            margin: 5px;
+            background: #739552;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        .square.selected {
+            background-color: #baca44;
+        }
+        
+        .square.valid-move {
+            background-color: #f7f769;
+        }
+
+        /* Chess Piece Styles */
+        .chess-piece {
+            width: 50px;  /* Adjust the size of the pieces */
+            height: 50px;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .w_king {
+            background-image: url('images/white_king.jpg');
+        }
+
+        .b_king {
+            background-image: url('images/black_king.jpg');
+        }
+
+        .w_queen {
+            background-image: url('images/white_queen.jpg');
+        }
+
+        .b_queen {
+            background-image: url('images/black_queen.jpg');
+        }
+
+        .w_rook {
+            background-image: url('images/white_rook.jpg');
+        }
+
+        .b_rook {
+            background-image: url('images/black_rook.jpg');
+        }
+
+        .w_bishop {
+            background-image: url('images/white_bishop.jpg');
+        }
+
+        .b_bishop {
+            background-image: url('images/black_bishop.jpg');
+        }
+
+        .w_knight {
+            background-image: url('images/white_knight.jpg');
+        }
+
+        .b_knight {
+            background-image: url('images/black_knight.jpg');
+        }
+
+        .w_pawn {
+            background-image: url('images/white_pawn.jpg');
+        }
+
+        .b_pawn {
+            background-image: url('images/black_pawn.jpg');
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Online Chess Game</h1>
+
+        <div id="game-info">
+            <div id="player2">
+                <span id="player2-name">Player 1</span>
+                <span id="player2-time">10:00</span>
+            </div>
+
+            <div id="chess-board"></div>
+
+            <div id="player1">
+                <span id="player1-name">Player 2</span>
+                <span id="playe1-time">10:00</span>
+            </div>
+        </div>
+
+        <div id="controls">
+            <button id="start-game">Start Game</button>
+            <button id="exit-game">Exit Game</button>
+        </div>
+
+        <div class="chess-piece white king" data-piece="w_king"></div>
+        <div class="chess-piece black king" data-piece="b_king"></div>
+        <div class="chess-piece black queen" data-piece="b_queen"></div>
+        <div class="chess-piece white queen" data-piece="w_queen"></div>
+        <div class="chess-piece black bishop" data-piece="b_bishop"></div>
+        <div class="chess-piece white bishop" data-piece="w_bishop"></div>
+        <div class="chess-piece black knight" data-piece="b_knight"></div>
+        <div class="chess-piece white knight" data-piece="w_knight"></div>
+        <div class="chess-piece black pawn" data-piece="b_pawn"></div>
+        <div class="chess-piece white pawn" data-piece="w_pawn"></div>
+        <div class="chess-piece white rook" data-piece="w_rook"></div>
+        <div class="chess-piece black rook" data-piece="b_rook"></div>
+    </div>
+
+    <script>
+
+        // Ask for username once and store it in sessionStorage
+        if (!sessionStorage.getItem("username")) {
+            const username = prompt("Enter your username:");
+            if (username) {
+                sessionStorage.setItem("username", username);
+            } else {
+                alert("Username is required to play.");
+            }
+        }
+
+        // Generate a simple token for testing
+        const token = 'test-token-' + Math.random().toString(36).substring(7);
+        let socket = null;
+        let gameStarted = false;
+        let playerRole = null; // 'white' or 'black'
+        let isMyTurn = false;
+        let reconnectAttempts = 0;
+        const MAX_RECONNECT_ATTEMPTS = 5;
+        let isConnecting = false;
+        let reconnectTimeout = null;
+
+        // Initialize the board state
+        let boardState = {
+            pieces: {},
+            selectedPiece: null,
+            validMoves: []
+        };
+
+        // Initialize chess.js game
+        let game = new Chess();
+
+        function connectWebSocket() {
+            if (isConnecting) {
+                console.log("Already attempting to connect...");
+                return;
+            }
+
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                console.log("WebSocket already connected");
+                return;
+            }
+
+            // Clear any existing reconnect timeout
+            if (reconnectTimeout) {
+                clearTimeout(reconnectTimeout);
+                reconnectTimeout = null;
+            }
+
+            isConnecting = true;
+            console.log("Connecting to WebSocket server with token:", token);
+            
+            try {
+                socket = new WebSocket(`ws://localhost:8080/ws?token=${encodeURIComponent(token)}`);
+                
+                socket.onopen = function () {
+                    console.log("Connected to server successfully");
+                    isConnecting = false;
+                    reconnectAttempts = 0;
+                    gameStarted = false;
+                    // Request to join a game
+                    socket.send(JSON.stringify({ 
+                        type: "JOIN_GAME", 
+                        username: sessionStorage.getItem("username") || "guest"
+                    }));
+
+                };
+
+                socket.onclose = function (event) {
+                    console.log("WebSocket connection closed:", {
+                        code: event.code,
+                        reason: event.reason,
+                        wasClean: event.wasClean
+                    });
+                    
+                    isConnecting = false;
+                    // Only attempt to reconnect if it wasn't a clean closure
+                    if (event.code !== 1000 && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                        reconnectAttempts++;
+                        console.log(`Attempting to reconnect (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
+                        reconnectTimeout = setTimeout(connectWebSocket, 3000);
+                    } else if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+                        console.log("Max reconnection attempts reached. Please refresh the page.");
+                    }
+                };
+
+                socket.onerror = function (error) {
+                    console.error("WebSocket error:", error);
+                    isConnecting = false;
+                };
+
+                socket.onmessage = function(event) {
+                    const message = JSON.parse(event.data);
+                    console.log("Message received:", message); // Debugging line to check the incoming message.
+
+                    switch (message.type) {
+                        case "GAME_ASSIGNED":
+                            playerRole = message.role;
+                            isMyTurn = (playerRole === "white");
+                            console.log("Game assigned, you are:", playerRole);
+                            break;
+
+                        case "GAME_START":
+                            console.log("Game started!");
+                            break;
+
+                        case "MOVE":
+                            updateBoard(message.move);  // Update the board with the opponent's move
+                            isMyTurn = (message.role !== playerRole);  // Now it's your turn if it wasn't your move
+                            console.log("Move received:", message.move); // Debugging line to check the move.
+                            break;
+
+                        case "GAME_END":
+                            alert(`Game Over. ${message.result}`);
+                            break;
+
+                        default:
+                            console.warn("Unknown message type:", message.type);
+                    }
+                };
+            } catch (error) {
+                console.error("Error creating WebSocket:", error);
+                isConnecting = false;
+            }
+        }
+
+        // Initialize Chessboard
+        function createChessboard() {
+            const board = document.getElementById("chess-board");
+            board.innerHTML = "";
+
+            const files = "abcdefgh";
+            const ranks = "87654321";
+
+            // Initialize the board state
+            boardState.pieces = {};
+            game.reset(); // Reset the chess.js game
+
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const square = document.createElement("div");
+                    square.classList.add("square", (i + j) % 2 === 0 ? "light" : "dark");
+                    square.dataset.position = `${files[j]}${ranks[i]}`;
+                    
+                    // Add click handler for moves
+                    square.addEventListener("click", () => {
+                        if (isMyTurn && gameStarted) {
+                            handleSquareClick(square);
+                        }
+                    });
+                    
+                    board.appendChild(square);
+                }
+            }
+
+            // Set up initial piece positions
+            setupInitialPosition();
+        }
+
+        function setupInitialPosition() {
+            const initialPosition = {
+                'a1': { color: 'white', type: 'rook' },
+                'b1': { color: 'white', type: 'knight' },
+                'c1': { color: 'white', type: 'bishop' },
+                'd1': { color: 'white', type: 'queen' },
+                'e1': { color: 'white', type: 'king' },
+                'f1': { color: 'white', type: 'bishop' },
+                'g1': { color: 'white', type: 'knight' },
+                'h1': { color: 'white', type: 'rook' },
+                'a2': { color: 'white', type: 'pawn' },
+                'b2': { color: 'white', type: 'pawn' },
+                'c2': { color: 'white', type: 'pawn' },
+                'd2': { color: 'white', type: 'pawn' },
+                'e2': { color: 'white', type: 'pawn' },
+                'f2': { color: 'white', type: 'pawn' },
+                'g2': { color: 'white', type: 'pawn' },
+                'h2': { color: 'white', type: 'pawn' },
+                'a8': { color: 'black', type: 'rook' },
+                'b8': { color: 'black', type: 'knight' },
+                'c8': { color: 'black', type: 'bishop' },
+                'd8': { color: 'black', type: 'queen' },
+                'e8': { color: 'black', type: 'king' },
+                'f8': { color: 'black', type: 'bishop' },
+                'g8': { color: 'black', type: 'knight' },
+                'h8': { color: 'black', type: 'rook' },
+                'a7': { color: 'black', type: 'pawn' },
+                'b7': { color: 'black', type: 'pawn' },
+                'c7': { color: 'black', type: 'pawn' },
+                'd7': { color: 'black', type: 'pawn' },
+                'e7': { color: 'black', type: 'pawn' },
+                'f7': { color: 'black', type: 'pawn' },
+                'g7': { color: 'black', type: 'pawn' },
+                'h7': { color: 'black', type: 'pawn' }
+            };
+
+            for (const [position, piece] of Object.entries(initialPosition)) {
+                const square = document.querySelector(`[data-position="${position}"]`);
+                if (square) {
+                    // Generate the class for the piece (e.g., 'w_king', 'b_queen')
+                    const pieceClass = `${piece.color[0]}_${piece.type}`;  // 'w_king' for white king, 'b_queen' for black queen
+                    square.innerHTML = '';  // Clear any previous content
+
+                    const pieceDiv = document.createElement("div");
+                    pieceDiv.classList.add("chess-piece", pieceClass);  // Add the class to the piece div
+                    square.appendChild(pieceDiv);
+
+                    boardState.pieces[position] = piece;
+                }
+            }
+        }
+
+
+        function handleSquareClick(square) {
+            const position = square.dataset.position;
+            if (!position) return;
+
+            if (!boardState.selectedPiece) {
+                // Select a piece
+                const piece = boardState.pieces[position];
+                if (piece && piece.color === (playerRole === 'white' ? 'white' : 'black')) {
+                    boardState.selectedPiece = position;
+                    square.classList.add('selected');
+                    highlightValidMoves(position);
+                }
+            } else {
+                // Move the selected piece
+                const fromPosition = boardState.selectedPiece;
+                const toPosition = position;
+                
+                // Check if the move is valid using chess.js
+                // Move the selected piece
+                const move = game.move({
+                    from: fromPosition,
+                    to: toPosition,
+                    promotion: 'q' // Always promote to queen for simplicity
+                });
+
+                if (move) {
+                    // Valid move, update the board
+                    // Update the board display
+                    const fromSquare = document.querySelector(`[data-position="${fromPosition}"]`);
+                    const toSquare = document.querySelector(`[data-position="${toPosition}"]`);
+                    toSquare.innerHTML = '';  // Clear the target square
+                    const pieceDiv = document.createElement("div");
+                    const pieceClass = `${move.color[0]}_${move.piece}`;
+                    pieceDiv.classList.add("chess-piece", pieceClass);
+                    toSquare.appendChild(pieceDiv);
+
+                    fromSquare.innerHTML = "";  // Clear the source square
+                    
+                    // Send move to server
+                    sendMove({
+                        from: fromPosition,
+                        to: toPosition
+                    });
+                    
+                    isMyTurn = false; // It's no longer your turn
+                } else {
+                    // Invalid move, clear selection
+                    const fromSquare = document.querySelector(`[data-position="${fromPosition}"]`);
+                    fromSquare.classList.remove('selected');
+                    clearValidMoveHighlights();
+                    boardState.selectedPiece = null;
+                }
+            }
+        }
+
+
+        function highlightValidMoves(position) {
+            const moves = game.moves({ square: position, verbose: true });
+            moves.forEach(move => {
+                const square = document.querySelector(`[data-position="${move.to}"]`);
+                if (square) {
+                    square.classList.add('valid-move');
+                }
+            });
+        }
+
+        function clearValidMoveHighlights() {
+            document.querySelectorAll('.valid-move').forEach(square => {
+                square.classList.remove('valid-move');
+            });
+        }
+
+        // Initialize WebSocket connection when the page loads
+        document.addEventListener("DOMContentLoaded", () => {
+            createChessboard();
+            connectWebSocket();
+        });
+
+        function sendMove(move) {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ 
+                    type: "MOVE", 
+                    move: move,
+                    role: playerRole
+                }));
+            } else {
+                console.error("WebSocket is not open. Current state:", socket ? socket.readyState : "No socket");
+                // Attempt to reconnect if the connection is lost
+                if (!isConnecting) {
+                    connectWebSocket();
+                }
+            }
+        }
+
+        document.getElementById("start-game").addEventListener("click", () => {
+            if (!gameStarted && socket && socket.readyState === WebSocket.OPEN) {
+                console.log("Starting game...");
+                socket.send(JSON.stringify({ type: "INIT_GAME" }));
+                gameStarted = true;
+            }
+        });
+
+        document.getElementById("exit-game").addEventListener("click", () => {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                console.log("Exiting game...");
+                socket.send(JSON.stringify({ type: "EXIT_GAME" }));
+                gameStarted = false;
+                playerRole = null;
+                isMyTurn = false;
+                alert("Exited Game");
+            }
+        });
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            if (reconnectTimeout) {
+                clearTimeout(reconnectTimeout);
+            }
+            if (socket) {
+                socket.close(1000, "Page closing");
+            }
+        });
+
+        function updateBoard(move) {
+            const fromCell = document.querySelector(`[data-position="${move.from}"]`);
+            const toCell = document.querySelector(`[data-position="${move.to}"]`);
+
+            const piece = fromCell.firstChild;
+            if (!piece) return; // If no piece exists in the starting cell, do nothing.
+
+            // Move the piece on the board
+            fromCell.removeChild(piece);
+
+            // If there's already a piece on the target square, remove it (capturing)
+            if (toCell.firstChild) {
+                toCell.removeChild(toCell.firstChild);
+            }
+
+            // Place the moved piece in the new position
+            const pieceDiv = document.createElement("div");
+            const pieceClass = `${move.role[0]}_${move.piece}`;
+            pieceDiv.classList.add("chess-piece", pieceClass);
+            toCell.appendChild(pieceDiv); // Add the piece to the new position
+
+            // Update internal board state (this keeps the game logic consistent)
+            boardState.pieces[move.to] = boardState.pieces[move.from];
+            delete boardState.pieces[move.from];
+
+            // Optionally, call renderBoard to make sure the board is consistent with the internal state
+            renderBoard();
+        }
+
+
+        function renderBoard() {
+            // Render pieces on the board based on the updated game state
+            for (const square of document.querySelectorAll('.square')) {
+                const position = square.dataset.position;
+                const piece = game.board().flat().find(p => p && p.square === position);
+
+                // Remove existing piece
+                const existingPiece = square.querySelector('.chess-piece');
+                if (existingPiece) {
+                    existingPiece.remove();
+                }
+
+                // Add new piece if it exists
+                if (piece) {
+                    const pieceDiv = document.createElement("div");
+                    const pieceClass = `${piece.color[0]}_${piece.type}`;
+                    pieceDiv.classList.add("chess-piece", pieceClass);
+                    square.appendChild(pieceDiv);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

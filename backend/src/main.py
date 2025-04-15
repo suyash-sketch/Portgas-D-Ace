@@ -12,15 +12,14 @@ from aiohttp import web
 game_manager = GameManager()
 auth = Auth()
 
-# Get the absolute path to the frontend directory
-# For PythonAnywhere, use the correct path
+# Get the absolute path to the frontend directoryz
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'frontend', 'src')
 
 async def handle_static_file(request):
     try:
         path = request.path
         if path == '/':
-            path = '/index.html'  # Serve index.html as the main page
+            path = '/index.html'  # Serve game.html as the main page
             
         file_path = os.path.join(FRONTEND_DIR, path.lstrip('/'))
         if os.path.exists(file_path):
@@ -39,6 +38,8 @@ async def handle_static_file(request):
     except Exception as e:
         print(f"Error serving static file: {e}")
         return web.Response(status=500)
+
+# In main.py, update the websocket_handler function
 
 async def websocket_handler(websocket):
     """Handle WebSocket connections."""
@@ -59,7 +60,13 @@ async def websocket_handler(websocket):
             await websocket.close(1008, "No token provided")
             return
             
-        # Accept any token for testing
+        # For testing, accept any token that starts with 'test-token-'
+        if not token.startswith('test-token-'):
+            print("Invalid token format")
+            await websocket.close(1008, "Invalid token")
+            return
+            
+        # Create a simple user object for testing
         user = {
             'id': token,
             'websocket': websocket
@@ -97,6 +104,30 @@ async def websocket_handler(websocket):
         if user:
             game_manager.remove_user(websocket)
 
+from aiohttp import web_ws
+
+async def websocket_aiohttp_handler(request):
+    ws = web.WebSocketResponse()
+    await ws.prepare(request)
+
+    class WSWrapper:
+        def __init__(self, ws, path):
+            self._ws = ws
+            self.path = path
+        async def send(self, data):
+            await self._ws.send_str(data)
+        async def __aiter__(self):
+            async for msg in self._ws:
+                if msg.type == web_ws.WSMsgType.TEXT:
+                    yield msg.data
+        async def close(self, code=1000, reason=''):
+            await self._ws.close(code=code, message=reason.encode())
+
+    wrapped = WSWrapper(ws, request.path_qs)
+    await websocket_handler(wrapped)
+    return ws
+
+
 async def start_websocket_server():
     """Start the WebSocket server."""
     # Get port from environment variable or use default
@@ -107,37 +138,54 @@ async def start_websocket_server():
     server = await serve(
         websocket_handler,
         '0.0.0.0',  # Listen on all interfaces
-        port
+        port,
+        # Add these options for ngrok compatibility
+        ping_interval=20,
+        ping_timeout=20,
+        close_timeout=10,
+        max_size=2**20,
+        max_queue=2**5
     )
     print(f"🚀 Starting WebSocket server on port {port}...")
     return server
 
 async def start_http_server():
-    """Start the HTTP server for static files."""
+    """Start the HTTP + WebSocket server on a single port."""
     app = web.Application()
-    app.router.add_get('/{tail:.*}', handle_static_file)
+    app.router.add_get('/ws', websocket_aiohttp_handler)  # ✅ Updated handler for WebSocket
+    app.router.add_get('/{tail:.*}', handle_static_file)  # Static file handler
+
     runner = web.AppRunner(app)
     await runner.setup()
-    
-    # Get port from environment variable or use default
-    port = int(os.environ.get('PORT', 8081))
-    
+
+    # Serve everything on one port (8080 or whatever ngrok exposes)
+    port = int(os.environ.get('PORT', 8080))
+
     site = web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
-    print(f"🚀 Starting HTTP server on port {port}...")
+    print(f"🚀 Starting HTTP+WebSocket server on port {port}...")
     return runner
 
 async def main():
     # Start both servers
-    websocket_server = await start_websocket_server()
+    # websocket_server = await start_websocket_server()
+    # http_server = await start_http_server()
+    
+    # try:
+    #     # Keep the servers running
+    #     await websocket_server.wait_closed()
+    # except KeyboardInterrupt:
+    #     print("\nShutting down servers...")
+    #     websocket_server.close()
+    #     await http_server.cleanup()
+
     http_server = await start_http_server()
     
     try:
-        # Keep the servers running
-        await websocket_server.wait_closed()
+        while True:
+            await asyncio.sleep(3600)
     except KeyboardInterrupt:
-        print("\nShutting down servers...")
-        websocket_server.close()
+        print("\nShutting down server...")
         await http_server.cleanup()
 
 if __name__ == "__main__":

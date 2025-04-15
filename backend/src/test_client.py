@@ -12,7 +12,7 @@ TOKEN_2 = 'test-token-' + str(random.randint(1000, 9999))
 async def connect_player(token, player_name):
     # Properly encode the token in the URL
     encoded_token = quote(token)
-    uri = f'ws://localhost:8080?token={encoded_token}'  # Remove the /ws part
+    uri = f'http://localhost:8081?token={encoded_token}'  # Remove the /ws part
     print(f"\n{player_name} connecting to {uri}")
     
     try:
