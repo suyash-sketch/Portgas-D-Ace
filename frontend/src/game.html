@@ -17,6 +17,8 @@
             --text-color: #E8E8E8;
             --highlight-color: #7FA650;
             --panel-bg: rgba(42, 40, 38, 0.8);
+            --check-square: #FF6B6B;
+            --checkmate-square: #FF0000;
         }
 
         body {
@@ -362,6 +364,26 @@
                 font-size: 1.8rem;
             }
         }
+
+        .square.check {
+            background-color: var(--check-square);
+        }
+        
+        .square.checkmate {
+            background-color: var(--checkmate-square);
+            animation: pulse 1s infinite;
+        }
+
+        .square.giving-check {
+            background-color: #FFA07A;
+            box-shadow: 0 0 10px #FFA07A;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -553,8 +575,14 @@
                                 isMyTurn = (message.role === playerRole);
                                 break;
                             case "GAME_OVER":
-                                alert("Game Over!");
+                                console.log("Game over received:", message);
                                 gameStarted = false;
+                                alert(message.message);
+                                // Reset the game state
+                                game = new Chess();
+                                createChessboard();
+                                document.querySelector('.game-container').classList.add('hidden');
+                                document.querySelector('.welcome-message').classList.remove('hidden');
                                 break;
                             case "GAME_JOINED":
                                 console.log("Joined game");
@@ -881,7 +909,129 @@
                         delete boardState.pieces[`${move.to[0]}${move.from[1]}`];
                     }
                 }
+
+                // Check for check and checkmate
+                updateCheckStatus();
             }
+        }
+
+        function updateCheckStatus() {
+            // Remove any existing check highlights
+            document.querySelectorAll('.square.check, .square.checkmate, .square.giving-check').forEach(square => {
+                square.classList.remove('check', 'checkmate', 'giving-check');
+            });
+
+            // Check if the game is in check or checkmate
+            if (game.in_check()) {
+                const kingColor = game.turn() === 'w' ? 'black' : 'white';
+                const kingPosition = findKingPosition(kingColor);
+                if (kingPosition) {
+                    // Highlight the king in check
+                    const kingSquare = document.querySelector(`[data-position="${kingPosition}"]`);
+                    if (kingSquare) {
+                        kingSquare.classList.add('check');
+                    }
+
+                    // Find and highlight the piece giving check
+                    const checkingPiecePosition = findCheckingPiece(kingPosition, kingColor);
+                    if (checkingPiecePosition) {
+                        const checkingPieceSquare = document.querySelector(`[data-position="${checkingPiecePosition}"]`);
+                        if (checkingPieceSquare) {
+                            checkingPieceSquare.classList.add('giving-check');
+                        }
+                    }
+                }
+            }
+
+            if (game.in_checkmate()) {
+                const kingColor = game.turn() === 'w' ? 'black' : 'white';
+                const kingPosition = findKingPosition(kingColor);
+                if (kingPosition) {
+                    const kingSquare = document.querySelector(`[data-position="${kingPosition}"]`);
+                    if (kingSquare) {
+                        kingSquare.classList.add('checkmate');
+                    }
+
+                    // Find and highlight the piece giving checkmate
+                    const checkingPiecePosition = findCheckingPiece(kingPosition, kingColor);
+                    if (checkingPiecePosition) {
+                        const checkingPieceSquare = document.querySelector(`[data-position="${checkingPiecePosition}"]`);
+                        if (checkingPieceSquare) {
+                            checkingPieceSquare.classList.add('giving-check');
+                        }
+                    }
+                }
+                // Show game over message
+                const winner = game.turn() === 'w' ? 'Black' : 'White';
+                setTimeout(() => {
+                    alert(`Checkmate! ${winner} wins!`);
+                    gameStarted = false;
+                    if (socket && socket.readyState === WebSocket.OPEN) {
+                        socket.send(JSON.stringify({ 
+                            type: "GAME_OVER",
+                            winner: winner
+                        }));
+                    }
+                }, 500);
+            } else if (game.in_draw()) {
+                setTimeout(() => {
+                    alert("Game ended in a draw!");
+                    gameStarted = false;
+                    if (socket && socket.readyState === WebSocket.OPEN) {
+                        socket.send(JSON.stringify({ 
+                            type: "GAME_OVER",
+                            result: "draw"
+                        }));
+                    }
+                }, 500);
+            }
+        }
+
+        function findCheckingPiece(kingPosition, kingColor) {
+            const board = game.board();
+            const kingFile = kingPosition.charCodeAt(0) - 97; // Convert a-h to 0-7
+            const kingRank = 8 - parseInt(kingPosition[1]);   // Convert 1-8 to 0-7
+
+            // Check all squares on the board
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const piece = board[i][j];
+                    if (piece && piece.color !== (kingColor === 'white' ? 'w' : 'b')) {
+                        // Try to move the piece to the king's position
+                        const fromFile = String.fromCharCode(97 + j);
+                        const fromRank = 8 - i;
+                        const fromPosition = `${fromFile}${fromRank}`;
+                        
+                        const move = game.move({
+                            from: fromPosition,
+                            to: kingPosition,
+                            promotion: 'q'
+                        });
+                        
+                        // If the move is valid, this piece is giving check
+                        if (move) {
+                            game.undo(); // Undo the move
+                            return fromPosition;
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        function findKingPosition(color) {
+            const board = game.board();
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const piece = board[i][j];
+                    if (piece && piece.type === 'k' && piece.color === (color === 'white' ? 'w' : 'b')) {
+                        const file = String.fromCharCode(97 + j);
+                        const rank = 8 - i;
+                        return `${file}${rank}`;
+                    }
+                }
+            }
+            return null;
         }
 
         function movePieceToCaptured(piece, position) {

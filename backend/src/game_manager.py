@@ -159,14 +159,25 @@ class GameManager:
         game['moves'].append(move)
         print(f"Move added to game {game['id']}: {move} by {'white' if is_white else 'black'}")
         
+        # Prepare move data with check information
+        move_data = {
+            "type": "MOVE",
+            "move": move,
+            "role": "white" if is_white else "black"
+        }
+        
+        # Add check information if present
+        if 'isCheck' in data:
+            move_data['isCheck'] = data['isCheck']
+        if 'isCheckmate' in data:
+            move_data['isCheckmate'] = data['isCheckmate']
+        if 'checkingPiece' in data:
+            move_data['checkingPiece'] = data['checkingPiece']
+        
         # Notify both players of the move
         for player in [game['white'], game['black']]:
-            print(f"Sending move to player {player['id']}: {move}")
-            await player['websocket'].send(json.dumps({
-                "type": "MOVE",
-                "move": move,
-                "role": "white" if player == game['white'] else "black"
-            }))
+            print(f"Sending move to player {player['id']}: {move_data}")
+            await player['websocket'].send(json.dumps(move_data))
 
     async def handle_exit_game(self, user):
         """Handle a user exiting the game."""
