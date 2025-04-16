@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chess Game</title>
+    <title>Chess - MindPlay Arena</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
             --light-square: #EEEED2;
@@ -35,6 +38,34 @@
             width: 90%;
             max-width: 1200px;
             margin: auto;
+        }
+
+        .back-button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            background: var(--panel-bg);
+            color: var(--text-color);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .back-button:hover {
+            background: var(--highlight-color);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .back-button i {
+            font-size: 16px;
         }
 
         h1 {
@@ -388,7 +419,10 @@
 </head>
 <body>
     <div class="container">
-        <!-- <h1>Online Chess Game</h1> -->
+        <button class="back-button" onclick="goBack()">
+            <i class="fas fa-arrow-left"></i>
+            Back to Menu
+        </button>
 
         <div class="welcome-message">
             <h2>Welcome to Online Chess</h2>
@@ -439,6 +473,15 @@
     </div>
 
     <script>
+        function goBack() {
+            // Close WebSocket connection if it exists
+            if (socket) {
+                socket.close(1000, "User returning to menu");
+            }
+            // Go back to the main menu
+            window.location.href = 'index.html';
+        }
+
         // Server configuration
         const SERVER_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
             ? 'ws://localhost:8080'  // Local development
@@ -572,7 +615,13 @@
                             case "MOVE":
                                 console.log("Move received:", message.move);
                                 updateBoard(message.move);
-                                isMyTurn = (message.role === playerRole);
+                                // Update turn based on the move's role
+                                isMyTurn = (message.role !== playerRole);
+                                console.log("Turn updated:", {
+                                    isMyTurn: isMyTurn,
+                                    messageRole: message.role,
+                                    playerRole: playerRole
+                                });
                                 break;
                             case "GAME_OVER":
                                 console.log("Game over received:", message);
@@ -744,7 +793,12 @@
                         to: toPosition
                     });
                     
+                    // Update turn indicator
                     isMyTurn = false;
+                    updateTurnIndicator();
+
+                    // Update check status immediately after making the move
+                    updateCheckStatus();
                 } else {
                     // Invalid move, clear selection
                     const fromSquare = document.querySelector(`[data-position="${fromPosition}"]`);
@@ -923,7 +977,8 @@
 
             // Check if the game is in check or checkmate
             if (game.in_check()) {
-                const kingColor = game.turn() === 'w' ? 'black' : 'white';
+                // Get the color of the king that is in check (the one whose turn it is)
+                const kingColor = game.turn() === 'w' ? 'white' : 'black';
                 const kingPosition = findKingPosition(kingColor);
                 if (kingPosition) {
                     // Highlight the king in check
@@ -944,7 +999,8 @@
             }
 
             if (game.in_checkmate()) {
-                const kingColor = game.turn() === 'w' ? 'black' : 'white';
+                // Get the color of the king that is in checkmate (the one whose turn it is)
+                const kingColor = game.turn() === 'w' ? 'white' : 'black';
                 const kingPosition = findKingPosition(kingColor);
                 if (kingPosition) {
                     const kingSquare = document.querySelector(`[data-position="${kingPosition}"]`);
@@ -1054,6 +1110,19 @@
             const pieceImg = square.querySelector('img');
             if (pieceImg) {
                 pieceImg.remove();
+            }
+        }
+
+        function updateTurnIndicator() {
+            const player1Indicator = document.getElementById('player1-indicator');
+            const player2Indicator = document.getElementById('player2-indicator');
+            
+            if (playerRole === 'white') {
+                player1Indicator.classList.toggle('turn-active', isMyTurn);
+                player2Indicator.classList.toggle('turn-active', !isMyTurn);
+            } else {
+                player1Indicator.classList.toggle('turn-active', !isMyTurn);
+                player2Indicator.classList.toggle('turn-active', isMyTurn);
             }
         }
     </script>

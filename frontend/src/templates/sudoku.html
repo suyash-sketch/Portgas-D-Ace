@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sudoku Web</title>
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3f37c9;
+            --accent-color: #f72585;
+            --light-color: #f8f9fa;
+            --dark-color: #212529;
+            --grid-border: #000;
+            --cell-border: #dee2e6;
+            --fixed-cell: #003566;
+            --selected-cell: #4cc9f0;
+            --hover-cell: #e9ecef;
+            --invalid-cell: #e63946;
+            --success-color: #38b000;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f7f7;
+            color: var(--dark-color);
+            line-height: 1.6;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .game-container {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+
+        .difficulty-selector {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+            gap: 10px;
+        }
+
+        .difficulty-btn {
+            background-color: var(--light-color);
+            border: 2px solid var(--cell-border);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .difficulty-btn:hover {
+            background-color: var(--hover-cell);
+        }
+
+        .difficulty-btn.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .game-board {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+        }
+
+        @media (min-width: 768px) {
+            .game-board {
+                flex-direction: row;
+                justify-content: center;
+                align-items: flex-start;
+            }
+        }
+
+        .grid-container {
+            position: relative;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            gap: 1px;
+            background-color: var(--grid-border);
+            border: 3px solid var(--grid-border);
+            width: 100%;
+            max-width: 800px;
+            aspect-ratio: 1/1;
+        }
+
+        .cell {
+            background-color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            cursor: pointer;
+            border: 1px solid var(--cell-border);
+            transition: all 0.2s ease;
+            position: relative;
+            min-height: 65px;
+            min-width: 65px;
+        }
+
+        .cell:hover {
+            background-color: var(--hover-cell);
+        }
+
+        .cell.selected {
+            background-color: var(--selected-cell);
+            color: var(--dark-color);
+            font-weight: 600;
+        }
+
+        .cell.fixed {
+            color: var(--fixed-cell);
+            font-weight: 700;
+        }
+
+        .cell.invalid {
+            color: var(--invalid-cell);
+        }
+
+        .cell.correct {
+            color: var(--success-color);
+        }
+
+        .cell.incorrect {
+            color: var(--invalid-cell);
+        }
+
+        /* Add thicker borders for 3x3 boxes */
+        .cell:nth-child(3n) {
+            border-right: 2px solid var(--grid-border);
+        }
+        .cell:nth-child(9n) {
+            border-right: 1px solid var(--cell-border);
+        }
+        .cell:nth-child(n+19):nth-child(-n+27),
+        .cell:nth-child(n+46):nth-child(-n+54) {
+            border-bottom: 2px solid var(--grid-border);
+        }
+
+        /* Highlight same numbers */
+        .cell.highlighted {
+            background-color: rgba(76, 201, 240, 0.3);
+        }
+
+        .controls-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding: 10px;
+        }
+
+        .number-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            width: 100%;
+            max-width: 280px;
+        }
+
+        .number-button {
+            padding: 12px;
+            font-size: 1.25rem;
+            font-weight: 600;
+            cursor: pointer;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .number-button:hover {
+            background-color: var(--secondary-color);
+            transform: translateY(-2px);
+        }
+
+        .number-button:active {
+            transform: translateY(0);
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+        }
+
+        #new-game {
+            background-color: var(--accent-color);
+        }
+
+        #new-game:hover {
+            background-color: #e91e63;
+        }
+
+        #clear-all {
+            background-color: #6c757d;
+        }
+
+        #notes-toggle {
+            background-color: #457b9d;
+        }
+
+        #solve {
+            background-color: #2a9d8f;
+        }
+
+        #solve:hover {
+            background-color: #21867a;
+        }
+
+        .notes-mode .number-button {
+            background-color: #457b9d;
+        }
+
+        .win-message {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--success-color);
+            margin-top: 20px;
+            padding: 15px 20px;
+            background-color: rgba(56, 176, 0, 0.1);
+            border-radius: 8px;
+            text-align: center;
+            display: none;
+            animation: pulse 1.5s infinite;
+        }
+
+        .timer {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .pencil-notes {
+            position: absolute;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            height: 100%;
+            width: 100%;
+            pointer-events: none;
+        }
+
+        .note {
+            font-size: 0.6rem;
+            color: #6c757d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        @media (max-width: 600px) {
+            .game-container {
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .cell {
+                font-size: 1.25rem;
+            }
+            
+            .note {
+                font-size: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>Sudoku</h1>
+        
+        <div class="difficulty-selector">
+            <button class="difficulty-btn" data-level="easy">Easy</button>
+            <button class="difficulty-btn active" data-level="medium">Medium</button>
+            <button class="difficulty-btn" data-level="hard">Hard</button>
+        </div>
+        
+        <div class="game-board">
+            <div class="grid-container">
+                <div class="grid" id="grid"></div>
+            </div>
+            
+            <div class="controls-container">
+                <div class="number-pad">
+                    <button class="number-button" data-number="1">1</button>
+                    <button class="number-button" data-number="2">2</button>
+                    <button class="number-button" data-number="3">3</button>
+                    <button class="number-button" data-number="4">4</button>
+                    <button class="number-button" data-number="5">5</button>
+                    <button class="number-button" data-number="6">6</button>
+                    <button class="number-button" data-number="7">7</button>
+                    <button class="number-button" data-number="8">8</button>
+                    <button class="number-button" data-number="9">9</button>
+                </div>
+                
+                <div class="controls">
+                    <button class="number-button" id="new-game">New Game</button>
+                    <button class="number-button" id="clear-all">Clear Cell</button>
+                    <button class="number-button" id="notes-toggle">Toggle Notes</button>
+                    <button class="number-button" id="solve">Solve</button>
+                </div>
+                
+                <div class="timer">Time: 00:00</div>
+            </div>
+        </div>
+        
+        <div class="win-message" id="win-message">Congratulations! You solved the puzzle!</div>
+    </div>
+
+    <script>
+        let selectedCell = null;
+        let gameGrid = null;
+        let fixedCells = new Set();
+        let notesMode = false;
+        let userNotes = Array(9).fill().map(() => Array(9).fill().map(() => new Set()));
+        let timerInterval;
+        let seconds = 0;
+        let difficulty = "medium";
+
+        function createGrid() {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+            
+            for (let row = 0; row < 9; row++) {
+                for (let col = 0; col < 9; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    cell.addEventListener('click', () => selectCell(cell));
+                    
+                    // Create pencil notes container
+                    const notesContainer = document.createElement('div');
+                    notesContainer.className = 'pencil-notes';
+                    
+                    // Create 9 note elements
+                    for (let i = 1; i <= 9; i++) {
+                        const note = document.createElement('div');
+                        note.className = 'note';
+                        note.dataset.value = i;
+                        notesContainer.appendChild(note);
+                    }
+                    
+                    cell.appendChild(notesContainer);
+                    grid.appendChild(cell);
+                }
+            }
+        }
+
+        function selectCell(cell) {
+            // Remove selection and highlights from all cells
+            document.querySelectorAll('.cell').forEach(c => {
+                c.classList.remove('selected');
+                c.classList.remove('highlighted');
+            });
+            
+            selectedCell = cell;
+            cell.classList.add('selected');
+            
+            // Highlight same numbers
+            const value = cell.textContent.trim();
+            if (value !== '') {
+                highlightSameNumbers(value);
+            }
+        }
+
+        function highlightSameNumbers(value) {
+            document.querySelectorAll('.cell').forEach(cell => {
+                if (cell.textContent.trim() === value) {
+                    cell.classList.add('highlighted');
+                }
+            });
+        }
+
+        function updateGrid(grid) {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach(cell => {
+                const row = parseInt(cell.dataset.row);
+                const col = parseInt(cell.dataset.col);
+                const value = grid[row][col];
+                
+                cell.textContent = value === 0 ? '' : value;
+                cell.classList.remove('correct', 'incorrect');
+                
+                // Re-append the notes container if it was removed
+                if (cell.querySelector('.pencil-notes') === null) {
+                    const notesContainer = document.createElement('div');
+                    notesContainer.className = 'pencil-notes';
+                    
+                    for (let i = 1; i <= 9; i++) {
+                        const note = document.createElement('div');
+                        note.className = 'note';
+                        note.dataset.value = i;
+                        notesContainer.appendChild(note);
+                    }
+                    
+                    cell.appendChild(notesContainer);
+                }
+                
+                if (value !== 0 && fixedCells.has(`${row},${col}`)) {
+                    cell.classList.add('fixed');
+                } else {
+                    cell.classList.remove('fixed');
+                    // Validate and color non-fixed cells
+                    if (value !== 0) {
+                        const isValid = validateMove(row, col, value);
+                        cell.classList.add(isValid ? 'correct' : 'incorrect');
+                    }
+                }
+                
+                // Update pencil notes
+                updateCellNotes(cell, row, col);
+            });
+        }
+
+        function updateCellNotes(cell, row, col) {
+            const notes = userNotes[row][col];
+            const notesContainer = cell.querySelector('.pencil-notes');
+            
+            if (!notesContainer) return;
+            
+            // Clear existing notes
+            Array.from(notesContainer.querySelectorAll('.note')).forEach(note => {
+                note.textContent = '';
+            });
+            
+            // Add active notes
+            notes.forEach(value => {
+                const noteEl = notesContainer.querySelector(`.note[data-value="${value}"]`);
+                if (noteEl) {
+                    noteEl.textContent = value;
+                }
+            });
+        }
+
+        async function newGame() {
+            try {
+                resetTimer();
+                startTimer();
+                document.getElementById('win-message').style.display = 'none';
+                
+                const response = await fetch('/api/new-game', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ difficulty: difficulty })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    gameGrid = data.grid;
+                    fixedCells.clear();
+                    userNotes = Array(9).fill().map(() => Array(9).fill().map(() => new Set()));
+                    
+                    // Mark initial numbers as fixed
+                    for (let row = 0; row < 9; row++) {
+                        for (let col = 0; col < 9; col++) {
+                            if (gameGrid[row][col] !== 0) {
+                                fixedCells.add(`${row},${col}`);
+                            }
+                        }
+                    }
+                    
+                    updateGrid(gameGrid);
+                }
+            } catch (error) {
+                console.error('Error starting new game:', error);
+                alert('Failed to start new game. Please try again.');
+            }
+        }
+
+        function createMockGrid() {
+            // Create a simple mock grid for demonstration
+            gameGrid = Array(9).fill().map(() => Array(9).fill(0));
+            fixedCells.clear();
+            
+            // Add some fixed numbers
+            const fixedPositions = [
+                [0, 0, 5], [0, 4, 1], [0, 8, 4],
+                [1, 2, 4], [1, 5, 8], [1, 7, 5],
+                [2, 1, 8], [2, 3, 2], [2, 6, 1],
+                [3, 0, 6], [3, 4, 5], [3, 8, 8],
+                [4, 2, 8], [4, 6, 2],
+                [5, 0, 4], [5, 4, 3], [5, 8, 6],
+                [6, 2, 6], [6, 5, 1], [6, 7, 4],
+                [7, 1, 7], [7, 4, 9], [7, 6, 5],
+                [8, 0, 9], [8, 4, 7], [8, 8, 3]
+            ];
+            
+            fixedPositions.forEach(([row, col, value]) => {
+                gameGrid[row][col] = value;
+                fixedCells.add(`${row},${col}`);
+            });
+            
+            updateGrid(gameGrid);
+        }
+
+        async function makeMove(row, col, value) {
+            try {
+                if (fixedCells.has(`${row},${col}`)) {
+                    return;
+                }
+                
+                if (notesMode && value !== 0) {
+                    toggleNote(row, col, value);
+                    return;
+                }
+                
+                // Clear notes when placing a number
+                userNotes[row][col].clear();
+                
+                // Send move to server
+                const response = await fetch('/api/make-move', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ row, col, value })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    gameGrid = data.grid;
+                    updateGrid(gameGrid);
+                    checkWin();
+                } else {
+                    alert('Invalid move. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error making move:', error);
+                alert('Failed to make move. Please try again.');
+            }
+        }
+
+        function validateMove(row, col, value) {
+            if (value === 0) return true;
+            
+            // Check row
+            for (let c = 0; c < 9; c++) {
+                if (c !== col && gameGrid[row][c] === value) {
+                    return false;
+                }
+            }
+            
+            // Check column
+            for (let r = 0; r < 9; r++) {
+                if (r !== row && gameGrid[r][col] === value) {
+                    return false;
+                }
+            }
+            
+            // Check 3x3 box
+            const boxRow = Math.floor(row / 3) * 3;
+            const boxCol = Math.floor(col / 3) * 3;
+            for (let r = boxRow; r < boxRow + 3; r++) {
+                for (let c = boxCol; c < boxCol + 3; c++) {
+                    if (r !== row && c !== col && gameGrid[r][c] === value) {
+                        return false;
+                    }
+                }
+            }
+            
+            return true;
+        }
+
+        function toggleNote(row, col, value) {
+            if (gameGrid[row][col] !== 0) return;
+            
+            const notes = userNotes[row][col];
+            
+            if (notes.has(value)) {
+                notes.delete(value);
+            } else {
+                notes.add(value);
+            }
+            
+            const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+            updateCellNotes(cell, row, col);
+        }
+
+        function toggleNotesMode() {
+            notesMode = !notesMode;
+            document.body.classList.toggle('notes-mode', notesMode);
+            document.getElementById('notes-toggle').textContent = notesMode ? "Notes: ON" : "Toggle Notes";
+        }
+
+        function clearSelectedCell() {
+            if (selectedCell) {
+                const row = parseInt(selectedCell.dataset.row);
+                const col = parseInt(selectedCell.dataset.col);
+                
+                if (!fixedCells.has(`${row},${col}`)) {
+                    makeMove(row, col, 0);
+                    userNotes[row][col].clear();
+                    updateCellNotes(selectedCell, row, col);
+                }
+            }
+        }
+
+        async function checkWin() {
+            try {
+                const response = await fetch('/api/check-win');
+                const data = await response.json();
+                
+                if (data.win) {
+                    document.getElementById('win-message').style.display = 'block';
+                    stopTimer();
+                }
+            } catch (error) {
+                console.error('Error checking win:', error);
+            }
+        }
+
+        function startTimer() {
+            seconds = 0;
+            updateTimerDisplay();
+            timerInterval = setInterval(() => {
+                seconds++;
+                updateTimerDisplay();
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        function resetTimer() {
+            stopTimer();
+            seconds = 0;
+            updateTimerDisplay();
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            document.querySelector('.timer').textContent = `Time: ${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function setDifficulty(level) {
+            difficulty = level;
+            document.querySelectorAll('.difficulty-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.level === level);
+            });
+            newGame();
+        }
+
+        // Initialize the game
+        createGrid();
+        newGame();
+
+        // Add event listeners for number buttons
+        document.querySelectorAll('.number-button[data-number]').forEach(button => {
+            button.addEventListener('click', () => {
+                if (selectedCell) {
+                    const row = parseInt(selectedCell.dataset.row);
+                    const col = parseInt(selectedCell.dataset.col);
+                    const value = parseInt(button.dataset.number);
+                    
+                    makeMove(row, col, value);
+                }
+            });
+        });
+
+        // Add keyboard support
+        document.addEventListener('keydown', (e) => {
+            if (selectedCell) {
+                const row = parseInt(selectedCell.dataset.row);
+                const col = parseInt(selectedCell.dataset.col);
+                
+                if (e.key >= '1' && e.key <= '9') {
+                    makeMove(row, col, parseInt(e.key));
+                } else if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') {
+                    if (!fixedCells.has(`${row},${col}`)) {
+                        makeMove(row, col, 0);
+                        userNotes[row][col].clear();
+                        updateCellNotes(selectedCell, row, col);
+                    }
+                } else if (e.key === 'n') {
+                    toggleNotesMode();
+                }
+            }
+            
+            // Arrow key navigation
+            if (selectedCell) {
+                const row = parseInt(selectedCell.dataset.row);
+                const col = parseInt(selectedCell.dataset.col);
+                let newRow = row;
+                let newCol = col;
+                
+                if (e.key === 'ArrowUp') newRow = Math.max(0, row - 1);
+                if (e.key === 'ArrowDown') newRow = Math.min(8, row + 1);
+                if (e.key === 'ArrowLeft') newCol = Math.max(0, col - 1);
+                if (e.key === 'ArrowRight') newCol = Math.min(8, col + 1);
+                
+                if (newRow !== row || newCol !== col) {
+                    const newCell = document.querySelector(`.cell[data-row="${newRow}"][data-col="${newCol}"]`);
+                    if (newCell) {
+                        selectCell(newCell);
+                    }
+                }
+            }
+        });
+
+        // Add event listener for new game button
+        document.getElementById('new-game').addEventListener('click', newGame);
+        
+        // Add event listener for clear button
+        document.getElementById('clear-all').addEventListener('click', clearSelectedCell);
+        
+        // Add event listener for notes toggle
+        document.getElementById('notes-toggle').addEventListener('click', toggleNotesMode);
+        
+        // Add event listener for solve button
+        document.getElementById('solve').addEventListener('click', solveSudoku);
+        
+        // Add event listeners for difficulty buttons
+        document.querySelectorAll('.difficulty-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                setDifficulty(button.dataset.level);
+            });
+        });
+
+        function solveSudoku() {
+            // Create a copy of the current grid to solve
+            const gridToSolve = JSON.parse(JSON.stringify(gameGrid));
+            
+            if (solveSudokuHelper(gridToSolve)) {
+                // Update the grid with the solution
+                gameGrid = gridToSolve;
+                updateGrid(gameGrid);
+                stopTimer();
+                document.getElementById('win-message').style.display = 'block';
+                
+                // Send the solution to the server
+                fetch('/api/make-move', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ grid: gameGrid })
+                }).catch(error => {
+                    console.error('Error sending solution to server:', error);
+                });
+            } else {
+                alert("No solution exists for this puzzle!");
+            }
+        }
+
+        function solveSudokuHelper(grid) {
+            for (let row = 0; row < 9; row++) {
+                for (let col = 0; col < 9; col++) {
+                    if (grid[row][col] === 0) {
+                        for (let num = 1; num <= 9; num++) {
+                            if (isValidPlacement(grid, row, col, num)) {
+                                grid[row][col] = num;
+                                if (solveSudokuHelper(grid)) {
+                                    return true;
+                                }
+                                grid[row][col] = 0;
+                            }
+                        }
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        function isValidPlacement(grid, row, col, num) {
+            // Check row
+            for (let c = 0; c < 9; c++) {
+                if (grid[row][c] === num) {
+                    return false;
+                }
+            }
+            
+            // Check column
+            for (let r = 0; r < 9; r++) {
+                if (grid[r][col] === num) {
+                    return false;
+                }
+            }
+            
+            // Check 3x3 box
+            const boxRow = Math.floor(row / 3) * 3;
+            const boxCol = Math.floor(col / 3) * 3;
+            for (let r = boxRow; r < boxRow + 3; r++) {
+                for (let c = boxCol; c < boxCol + 3; c++) {
+                    if (grid[r][c] === num) {
+                        return false;
+                    }
+                }
+            }
+            
+            return true;
+        }
+    </script>
+</body>
+</html>

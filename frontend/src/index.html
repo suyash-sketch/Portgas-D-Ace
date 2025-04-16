@@ -3,107 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Online Chess - Welcome</title>
-    <style>
-        body {
-            background-color: #302e2b;
-            color: white;
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-        }
-
-        .container {
-            max-width: 800px;
-            padding: 40px;
-            background-color: rgba(0, 0, 0, 0.3);
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        }
-
-        h1 {
-            font-size: 3rem;
-            margin-bottom: 20px;
-            color: #f0d9b5;
-        }
-
-        p {
-            font-size: 1.2rem;
-            margin-bottom: 30px;
-            line-height: 1.6;
-        }
-
-        .btn {
-            display: inline-block;
-            padding: 15px 30px;
-            background-color: #739552;
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            font-size: 1.2rem;
-            font-weight: bold;
-            transition: background-color 0.3s;
-            margin: 10px;
-        }
-
-        .btn:hover {
-            background-color: #8ab168;
-        }
-
-        .chess-icon {
-            font-size: 5rem;
-            margin-bottom: 20px;
-        }
-
-        .features {
-            display: flex;
-            justify-content: space-around;
-            margin: 40px 0;
-            flex-wrap: wrap;
-        }
-
-        .feature {
-            flex: 1;
-            min-width: 200px;
-            margin: 10px;
-            padding: 20px;
-            background-color: rgba(115, 149, 82, 0.2);
-            border-radius: 5px;
-        }
-
-        .feature h3 {
-            color: #f0d9b5;
-        }
-    </style>
+    <title>MindPlay Arena</title>
+    <link rel="stylesheet" href="index-styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+    <div class="background-animation"></div>
     <div class="container">
-        <div class="chess-icon">♟</div>
-        <h1>Welcome to Online Chess</h1>
-        <p>Play chess with friends or random opponents in real-time. Challenge your strategic thinking and improve your game.</p>
-        
-        <div class="features">
-            <div class="feature">
-                <h3>Real-time Play</h3>
-                <p>Play chess in real-time with opponents from around the world.</p>
+        <header>
+            <h1 class="title"><span class="highlight">MIND</span>PLAY ARENA</h1>
+            <p class="subtitle">Challenge Your Brain with Classic Games!</p>
+        </header>
+
+        <div class="games-grid">
+            <!-- Chess Card -->
+            <div class="game-card" onclick="window.location.href='chess.html'">
+                <div class="game-icon">
+                    <i class="fas fa-chess-queen"></i>
+                </div>
+                <h2>Chess</h2>
+                <p>Strategize and conquer the board!</p>
+                <button class="play-button">Play Now</button>
             </div>
-            <div class="feature">
-                <h3>Simple Interface</h3>
-                <p>Clean, intuitive interface for a smooth gaming experience.</p>
+
+            <!-- Sudoku Card -->
+            <div class="game-card" onclick="window.location.href='/sudoku'">
+                <div class="game-icon">
+                    <span class="sudoku-icon">🧩</span>
+                </div>
+                <h2>Sudoku</h2>
+                <p>Solve the puzzle with logic!</p>
+                <button class="play-button">Play Now</button>
             </div>
-            <div class="feature">
-                <h3>No Registration</h3>
-                <p>Start playing immediately without creating an account.</p>
+
+            <!-- Tic-Tac-Toe Card -->
+            <div class="game-card" onclick="window.location.href='tictactoe.html'">
+                <div class="game-icon">
+                    <i class="fas fa-times"></i>
+                </div>
+                <h2>Tic-Tac-Toe</h2>
+                <p>Classic X vs O battle!</p>
+                <button class="play-button">Play Now</button>
             </div>
         </div>
-        
-        <a href="game.html" class="btn">Start Game</a>
     </div>
+
+    <footer>
+        <p>© 2024 MindPlay Arena | Built with HTML, CSS & JavaScript</p>
+    </footer>
+
+    <script src="index-script.js"></script>
 </body>
-</html> 
+</html>

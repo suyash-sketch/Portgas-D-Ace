@@ -6,20 +6,28 @@ from urllib.parse import parse_qs, urlparse
 from game_manager import GameManager
 from auth import Auth, extract_auth_user
 from socket_manager import socket_manager
-from aiohttp import web
+from aiohttp import web, web_ws
+from grid import create_grid, remove_numbers, SUB_GRID_SIZE
 
 # Initialize game manager and auth
 game_manager = GameManager()
 auth = Auth()
 
-# Get the absolute path to the frontend directoryz
+# Initialize Sudoku game state
+sudoku_grid = None
+
+# Initialize Tic Tac Toe game state
+tictactoe_players = []
+tictactoe_games = []
+
+# Get the absolute path to the frontend directory
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'frontend', 'src')
 
 async def handle_static_file(request):
     try:
         path = request.path
         if path == '/':
-            path = '/index.html'  # Serve game.html as the main page
+            path = '/index.html'  # Serve index.html as the main page
             
         file_path = os.path.join(FRONTEND_DIR, path.lstrip('/'))
         if os.path.exists(file_path):
@@ -39,7 +47,168 @@ async def handle_static_file(request):
         print(f"Error serving static file: {e}")
         return web.Response(status=500)
 
-# In main.py, update the websocket_handler function
+async def handle_sudoku_game(request):
+    try:
+        file_path = os.path.join(FRONTEND_DIR, 'templates', 'sudoku.html')
+        if os.path.exists(file_path):
+            return web.FileResponse(file_path)
+        return web.Response(status=404)
+    except Exception as e:
+        print(f"Error serving Sudoku game: {e}")
+        return web.Response(status=500)
+
+async def handle_new_sudoku_game(request):
+    global sudoku_grid
+    grid = create_grid(SUB_GRID_SIZE)
+    remove_numbers(grid)
+    sudoku_grid = grid
+    return web.json_response({
+        'grid': grid,
+        'status': 'success'
+    })
+
+async def handle_sudoku_move(request):
+    global sudoku_grid
+    data = await request.json()
+    row = data.get('row')
+    col = data.get('col')
+    value = data.get('value')
+    
+    if sudoku_grid is None:
+        return web.json_response({'error': 'No active game'}, status=400)
+        
+    if 0 <= row < 9 and 0 <= col < 9 and 1 <= value <= 9:
+        sudoku_grid[row][col] = value
+        return web.json_response({
+            'grid': sudoku_grid,
+            'status': 'success'
+        })
+    return web.json_response({'error': 'Invalid move'}, status=400)
+
+async def handle_check_sudoku_win(request):
+    global sudoku_grid
+    if sudoku_grid is None:
+        return web.json_response({'error': 'No active game'}, status=400)
+        
+    # Check if the grid is complete and valid
+    for row in range(9):
+        for col in range(9):
+            if sudoku_grid[row][col] == 0:
+                return web.json_response({'win': False})
+                
+    # Check rows, columns, and subgrids
+    for i in range(9):
+        # Check row
+        if len(set(sudoku_grid[i])) != 9:
+            return web.json_response({'win': False})
+            
+        # Check column
+        column = [sudoku_grid[j][i] for j in range(9)]
+        if len(set(column)) != 9:
+            return web.json_response({'win': False})
+            
+        # Check subgrid
+        subgrid_row = (i // 3) * 3
+        subgrid_col = (i % 3) * 3
+        subgrid = []
+        for r in range(3):
+            for c in range(3):
+                subgrid.append(sudoku_grid[subgrid_row + r][subgrid_col + c])
+        if len(set(subgrid)) != 9:
+            return web.json_response({'win': False})
+            
+    return web.json_response({'win': True})
+
+async def handle_tictactoe_game(request):
+    try:
+        file_path = os.path.join(FRONTEND_DIR, 'templates', 'tictactoe.html')
+        if os.path.exists(file_path):
+            return web.FileResponse(file_path)
+        return web.Response(status=404)
+    except Exception as e:
+        print(f"Error serving Tic Tac Toe game: {e}")
+        return web.Response(status=500)
+
+async def handle_tictactoe_find(request):
+    data = await request.json()
+    name = data.get('name')
+    
+    if name is not None:
+        tictactoe_players.append(name)
+        
+        if len(tictactoe_players) >= 2:
+            p1obj = {
+                'p1name': tictactoe_players[0],
+                'p1value': 'X',
+                'p1move': ''
+            }
+            p2obj = {
+                'p2name': tictactoe_players[1],
+                'p2value': 'O',
+                'p2move': ''
+            }
+            
+            game = {
+                'p1': p1obj,
+                'p2': p2obj,
+                'sum': 1
+            }
+            tictactoe_games.append(game)
+            
+            tictactoe_players.pop(0)
+            tictactoe_players.pop(0)
+            
+            return web.json_response({
+                'status': 'success',
+                'allPlayers': tictactoe_games
+            })
+    
+    return web.json_response({
+        'status': 'waiting',
+        'message': 'Waiting for another player...'
+    })
+
+async def handle_tictactoe_move(request):
+    data = await request.json()
+    name = data.get('name')
+    value = data.get('value')
+    move_id = data.get('id')
+    
+    game_to_update = None
+    for game in tictactoe_games:
+        if game['p1']['p1name'] == name or game['p2']['p2name'] == name:
+            game_to_update = game
+            break
+    
+    if game_to_update:
+        if value == 'X':
+            game_to_update['p1']['p1move'] = move_id
+            game_to_update['sum'] += 1
+        elif value == 'O':
+            game_to_update['p2']['p2move'] = move_id
+            game_to_update['sum'] += 1
+            
+        return web.json_response({
+            'status': 'success',
+            'allPlayers': tictactoe_games
+        })
+    
+    return web.json_response({
+        'status': 'error',
+        'message': 'Game not found'
+    }, status=400)
+
+async def handle_tictactoe_game_over(request):
+    data = await request.json()
+    name = data.get('name')
+    
+    global tictactoe_games
+    tictactoe_games = [game for game in tictactoe_games if game['p1']['p1name'] != name]
+    
+    return web.json_response({
+        'status': 'success',
+        'message': 'Game removed'
+    })
 
 async def websocket_handler(websocket):
     """Handle WebSocket connections."""
@@ -104,8 +273,6 @@ async def websocket_handler(websocket):
         if user:
             game_manager.remove_user(websocket)
 
-from aiohttp import web_ws
-
 async def websocket_aiohttp_handler(request):
     ws = web.WebSocketResponse()
     await ws.prepare(request)
@@ -127,33 +294,25 @@ async def websocket_aiohttp_handler(request):
     await websocket_handler(wrapped)
     return ws
 
-
-async def start_websocket_server():
-    """Start the WebSocket server."""
-    # Get port from environment variable or use default
-    port = int(os.environ.get('PORT', 8080))
-    
-    # Use legacy API for websockets 15.0+
-    from websockets.legacy.server import serve
-    server = await serve(
-        websocket_handler,
-        '0.0.0.0',  # Listen on all interfaces
-        port,
-        # Add these options for ngrok compatibility
-        ping_interval=20,
-        ping_timeout=20,
-        close_timeout=10,
-        max_size=2**20,
-        max_queue=2**5
-    )
-    print(f"🚀 Starting WebSocket server on port {port}...")
-    return server
-
 async def start_http_server():
     """Start the HTTP + WebSocket server on a single port."""
     app = web.Application()
-    app.router.add_get('/ws', websocket_aiohttp_handler)  # ✅ Updated handler for WebSocket
-    app.router.add_get('/{tail:.*}', handle_static_file)  # Static file handler
+    
+    # Add routes for static files and WebSocket
+    app.router.add_get('/ws', websocket_aiohttp_handler)
+    app.router.add_get('/{tail:.*}', handle_static_file)
+    
+    # Add Sudoku routes
+    app.router.add_get('/sudoku', handle_sudoku_game)
+    app.router.add_post('/api/new-game', handle_new_sudoku_game)
+    app.router.add_post('/api/make-move', handle_sudoku_move)
+    app.router.add_get('/api/check-win', handle_check_sudoku_win)
+    
+    # Add Tic Tac Toe routes
+    app.router.add_get('/tictactoe', handle_tictactoe_game)
+    app.router.add_post('/api/tictactoe/find', handle_tictactoe_find)
+    app.router.add_post('/api/tictactoe/move', handle_tictactoe_move)
+    app.router.add_post('/api/tictactoe/game-over', handle_tictactoe_game_over)
 
     runner = web.AppRunner(app)
     await runner.setup()
@@ -167,18 +326,6 @@ async def start_http_server():
     return runner
 
 async def main():
-    # Start both servers
-    # websocket_server = await start_websocket_server()
-    # http_server = await start_http_server()
-    
-    # try:
-    #     # Keep the servers running
-    #     await websocket_server.wait_closed()
-    # except KeyboardInterrupt:
-    #     print("\nShutting down servers...")
-    #     websocket_server.close()
-    #     await http_server.cleanup()
-
     http_server = await start_http_server()
     
     try:
